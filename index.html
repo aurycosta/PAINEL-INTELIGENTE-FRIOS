@@ -154,8 +154,7 @@
                         </button>
                     </div>
                     
-                    <div id="relatedContainer" class="space-y-4">
-                        </div>
+                    <div id="relatedContainer" class="space-y-4"></div>
                 </div>
 
                 <div class="flex justify-end pt-4 border-t border-gray-100">
@@ -166,13 +165,47 @@
             </form>
         </section>
 
+        <section id="masterAdminSection" class="hidden bg-white rounded-xl shadow-md p-6 mb-8 border border-amber-300 bg-amber-50/10 no-print">
+            <div class="border-b border-amber-200 pb-2 mb-4">
+                <h2 class="text-base font-bold text-amber-800 flex items-center gap-2">
+                    🔑 Gerenciador de Usuários ADM (Acesso Master: au.costa)
+                </h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-3">Autorizar Novo Administrador</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-gray-600 mb-1">Usuário de Acesso</label>
+                            <input type="text" id="newAdminUser" placeholder="Ex: natali.costa" class="w-full text-sm border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <button id="btnSaveAdmin" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs py-2 rounded transition cursor-pointer">
+                            💼 Conceder Acesso ADM
+                        </button>
+                    </div>
+                </div>
+                <div class="md:col-span-2 bg-white p-4 rounded-lg border border-gray-200 shadow-sm overflow-y-auto max-h-48">
+                    <h3 class="text-xs font-bold text-gray-500 uppercase mb-2">Administradores Autorizados no Sistema</h3>
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-200 text-gray-400 text-xs">
+                                <th class="pb-1">Usuário</th>
+                                <th class="pb-1 text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminUsersTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
         <section id="pdfPrintArea" class="hidden">
             <div id="main-pdf-wrapper">
                 <div style="text-align: center; font-size: 14pt; font-weight: bold; border-bottom: 2px solid #000000; padding-bottom: 5px; margin-bottom: 15px;">
                     TABELA GERAL DE PADRONIZAÇÃO DE FRIOS FATIADOS
                 </div>
-                <div id="pdfTablesContainer">
-                    </div>
+                <div id="pdfTablesContainer"></div>
             </div>
         </section>
 
@@ -254,6 +287,7 @@
         const btnAdminAuth = document.getElementById('btnAdminAuth');
         const adminStatus = document.getElementById('adminStatus');
         const adminSection = document.getElementById('adminSection');
+        const masterAdminSection = document.getElementById('masterAdminSection');
         const productForm = document.getElementById('productForm');
         const relatedContainer = document.getElementById('relatedContainer');
         const btnAddRelated = document.getElementById('btnAddRelated');
@@ -266,30 +300,46 @@
         const pdfPrintArea = document.getElementById('pdfPrintArea');
         const pdfTablesContainer = document.getElementById('pdfTablesContainer');
         const relatedTemplate = document.getElementById('relatedTemplate');
+        
+        // Referências DOM - Master Admin
+        const newAdminUserInput = document.getElementById('newAdminUser');
+        const btnSaveAdmin = document.getElementById('btnSaveAdmin');
+        const adminUsersTableBody = document.getElementById('adminUsersTableBody');
 
         let IS_ADMIN = false;
         let base64ImageString = "";
         let cachedProducts = {};
+        let cachedAdmins = {};
 
-        // --- AUTENTICAÇÃO TEMPORAL (2 HORAS) ---
+        // --- AUTENTICAÇÃO TEMPORAL (2 HORAS) COM VALIDAÇÃO EM BANCO ---
         function checkAdminSession() {
             const loginTime = localStorage.getItem('admin_session_time');
             const adminUser = localStorage.getItem('admin_user');
             
-            if (loginTime && adminUser === 'au.costa') {
+            if (loginTime && adminUser) {
                 const hoursPassed = (Date.now() - parseInt(loginTime)) / (1000 * 60 * 60);
                 if (hoursPassed < 2) {
-                    activateAdminMode();
-                    return;
+                    // Se for au.costa entra direto, se for outro, verifica se está na lista ativa
+                    if (adminUser === 'au.costa' || cachedAdmins[adminUser.replace('.', '_')]) {
+                        activateAdminMode(adminUser);
+                        return;
+                    }
                 }
             }
             deactivateAdminMode();
         }
 
-        function activateAdminMode() {
+        function activateAdminMode(user) {
             IS_ADMIN = true;
             adminStatus.classList.remove('hidden');
             adminSection.classList.remove('hidden');
+            
+            // Regra crucial: Só abre a gestão de usuários se for o criador master (au.costa)
+            if (user === 'au.costa') {
+                masterAdminSection.classList.remove('hidden');
+            } else {
+                masterAdminSection.classList.add('hidden');
+            }
             renderDashboard(); 
         }
 
@@ -297,23 +347,89 @@
             IS_ADMIN = false;
             adminStatus.classList.add('hidden');
             adminSection.classList.add('hidden');
+            masterAdminSection.classList.add('hidden');
             localStorage.removeItem('admin_session_time');
             localStorage.removeItem('admin_user');
             renderDashboard();
         }
 
         btnAdminAuth.addEventListener('click', () => {
-            const user = prompt("Digite o usuário de acesso Administrador:");
-            if (user === "au.costa") {
+            const user = prompt("Digite o usuário de acesso Administrador:").trim().toLowerCase();
+            if (!user) return;
+
+            // Validação: au.costa nativo, ou checagem na lista do banco de dados
+            const sanitizedUserKey = user.replace('.', '_');
+            if (user === "au.costa" || cachedAdmins[sanitizedUserKey]) {
                 localStorage.setItem('admin_session_time', Date.now().toString());
                 localStorage.setItem('admin_user', user);
-                activateAdminMode();
-                alert("Modo Administrador ativo por 2 horas.");
-            } else if (user !== null) {
-                alert("Usuário incorreto.");
+                activateAdminMode(user);
+                alert(`Modo Administrador ativo para o usuário [${user}] por 2 horas.`);
+            } else {
+                alert("Usuário sem privilégios administrativos ou incorreto.");
             }
         });
 
+        // --- GERENCIAMENTO DE OUTROS ADMINS (EXCLUSIVO AU.COSTA) ---
+        btnSaveAdmin.addEventListener('click', () => {
+            const newAdmin = newAdminUserInput.value.trim().toLowerCase();
+            if (!newAdmin) return alert("Por favor, digite um usuário válido.");
+            if (newAdmin === "au.costa") return alert("Este usuário já é o administrador raiz.");
+
+            const sanitizedKey = newAdmin.replace('.', '_');
+            set(ref(db, 'admins/' + sanitizedKey), {
+                username: newAdmin,
+                grantedAt: Date.now()
+            }).then(() => {
+                alert(`Usuário [${newAdmin}] agora possui acesso de Administrador.`);
+                newAdminUserInput.value = "";
+            }).catch(err => alert("Erro ao salvar administrador: " + err));
+        });
+
+        window.removeAdmin = function(userKey) {
+            if (confirm("Deseja revogar as permissões administrativas deste usuário?")) {
+                remove(ref(db, 'admins/' + userKey)).then(() => {
+                    alert("Acesso revogado com sucesso.");
+                    // Se o usuário deslogado for ele mesmo (improvável via fluxo normal), derruba sessão
+                    if(localStorage.getItem('admin_user') === userKey.replace('_', '.')) {
+                        deactivateAdminMode();
+                    }
+                });
+            }
+        };
+
+        function renderAdminUsersList() {
+            adminUsersTableBody.innerHTML = "";
+            const keys = Object.keys(cachedAdmins);
+            
+            if (keys.length === 0) {
+                adminUsersTableBody.innerHTML = `<tr><td colspan="2" class="py-2 text-gray-400 italic text-xs">Nenhum outro administrador cadastrado.</td></tr>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const adminData = cachedAdmins[key];
+                const row = document.createElement('tr');
+                row.className = "border-b border-gray-100 text-sm";
+                row.innerHTML = `
+                    <td class="py-2 font-mono text-slate-700">${adminData.username}</td>
+                    <td class="py-2 text-center">
+                        <button onclick="window.removeAdmin('${key}')" class="bg-red-100 hover:bg-red-200 text-red-600 font-bold text-xs px-2 py-1 rounded transition cursor-pointer">
+                            Revogar
+                        </button>
+                    </td>
+                `;
+                adminUsersTableBody.appendChild(row);
+            });
+        }
+
+        // --- MONITORAMENTO EM TEMPO REAL DOS ADMINS ---
+        onValue(ref(db, 'admins'), (snapshot) => {
+            cachedAdmins = snapshot.val() || {};
+            renderAdminUsersList();
+            checkAdminSession(); // Garante a atualização instantânea caso um acesso seja revogado
+        });
+
+        // --- LÓGICA DE FOTOS E SUBPRODUTOS ---
         document.getElementById('baseImageFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -364,9 +480,7 @@
             relatedContainer.appendChild(row);
         }
 
-        btnAddRelated.addEventListener('click', () => createRelatedRow());
-
-        // --- SALVAR / ATUALIZAR ---
+        // --- SALVAR / ATUALIZAR PRODUTOS ---
         productForm.addEventListener('submit', function(e) {
             e.preventDefault();
             if (!IS_ADMIN) return alert("Sem permissão.");
@@ -539,7 +653,7 @@
             renderDashboard();
         });
 
-        // --- EXPONDO EXPLICITAMENTE AS FUNÇÕES DE EDIÇÃO E EXCLUSÃO PARA O ESCOPO GLOBAL (WINDOW) ---
+        // --- EXPOSIÇÃO GLOBAL DE PRODUTOS ---
         window.deleteProduct = function(id) {
             if (confirm("Remover este produto base e todos os seus relacionados?")) {
                 remove(ref(db, 'products/' + id)).then(() => alert("Removido com sucesso."));
@@ -570,7 +684,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        // --- SISTEMA DE ESTRUTURAÇÃO DO PDF EM GRADE COMPLETA (FIEL AO SEU SEGUNDO PRINT) ---
+        // --- CONVERSÃO PARA TABELA EM GRADE DO PDF ---
         function generateCompactPdfStructure() {
             pdfTablesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
@@ -591,7 +705,6 @@
 
                 let rowsHtml = "";
                 grouped[category].forEach(prod => {
-                    // Linha Matriz Amarela Completa da Grade Divisória igual ao seu modelo
                     rowsHtml += `
                         <tr class="pdf-row-base">
                             <td style="text-align: left !important; font-weight: bold;">${prod.baseName}</td>
@@ -603,7 +716,6 @@
                         </tr>
                     `;
 
-                    // Linhas das Variações Relacionadas limpas
                     if (prod.related && prod.related.length > 0) {
                         prod.related.forEach(rel => {
                             const cleanName = (rel.name && rel.name !== "N/A") ? rel.name : "";
@@ -627,7 +739,6 @@
                     }
                 });
 
-                // Estruturação do cabeçalho azul em HTML Puro contra interrupções do Framework
                 catWrapper.innerHTML = `
                     <div class="pdf-category-banner">📂 CATEGORIA: ${category}</div>
                     <table class="grid-pdf-table">
@@ -678,7 +789,11 @@
             }, 500);
         });
 
-        checkAdminSession();
+        // Inicialização automática do sistema
+        onValue(ref(db, 'products'), (snapshot) => {
+            cachedProducts = snapshot.val() || {};
+            renderDashboard();
+        });
     </script>
 </body>
 </html>
