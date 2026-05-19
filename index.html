@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Padronização de Fatiados - Frios</title>
+    <!-- Tailwind CSS para um design moderno e limpo -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Biblioteca para Impressão de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .page-break { page-break-after: always; }
+        }
+        .product-card:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
+
+    <!-- BARRA DE NAVEGAÇÃO -->
+    <nav class="bg-slate-800 text-white shadow-md no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
+                📦 Padronização de Fatiados
+            </h1>
+            <div class="flex items-center gap-4">
+                <button id="btnPrint" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 cursor-pointer">
+                    🖨️ Imprimir PDF
+                </button>
+                <!-- Botão ADM Discreto -->
+                <button id="btnAdminAuth" class="text-slate-500 hover:text-slate-300 text-xs font-mono transition tracking-widest focus:outline-none cursor-pointer">
+                    [ADM]
+                </button>
+                <span id="adminStatus" class="hidden text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 font-mono">
+                    Sessão ADM Ativa
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+
+        <!-- ÁREA DO ADMINISTRADOR (CADASTRO / EDIÇÃO) -->
+        <section id="adminSection" class="hidden bg-white rounded-xl shadow-md p-6 mb-8 border border-slate-200 no-print">
+            <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-3">
+                <h2 id="formTitle" class="text-lg font-bold text-slate-700 flex items-center gap-2">
+                    ✨ Cadastrar Novo Produto Base
+                </h2>
+                <button id="btnCancelEdit" class="hidden text-sm text-red-500 hover:underline cursor-pointer">
+                    Cancelar Edição
+                </button>
+            </div>
+
+            <form id="productForm" class="space-y-6">
+                <input type="hidden" id="productId">
+                
+                <!-- Categoria e Dados do Produto Base -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Categoria</label>
+                        <input type="text" id="categoryName" required placeholder="Ex: QUEIJO PROVOLONE" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Nome do Produto Base</label>
+                        <input type="text" id="baseName" required placeholder="Ex: PROVOLONE MARCA X" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Código Base (Texto)</label>
+                        <input type="text" id="baseCode" required placeholder="Ex: PROVOLONE PEÇA" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Código Interno/PLU</label>
+                        <input type="number" id="baseIdCode" required placeholder="Ex: 4144" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- Mídia do Produto Base -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">URL da Foto do Base (Internet)</label>
+                        <input type="url" id="baseImageUrl" placeholder="https://linkdaimagem.com/foto.jpg" class="w-full bg-white border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gray-500 mb-1">Ou Importar da Galeria/Computador</label>
+                        <input type="file" id="baseImageFile" accept="image/*" class="w-full bg-white border border-gray-300 rounded-lg p-1.5 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-slate-700 file:text-white hover:file:bg-slate-800">
+                    </div>
+                </div>
+
+                <!-- Produtos Relacionados (Fatiado, Pedaço, etc) -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-600">📦 Subprodutos Relacionados</h3>
+                        <button type="button" id="btnAddRelated" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-bold px-3 py-1.5 rounded transition flex items-center gap-1 cursor-pointer">
+                            ➕ Adicionar Relacionado
+                        </button>
+                    </div>
+                    
+                    <div id="relatedContainer" class="space-y-4">
+                        <!-- Os blocos de relacionados serão inseridos aqui dinamicamente -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-gray-100">
+                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold px-6 py-2.5 rounded-lg shadow transition cursor-pointer">
+                        💾 Salvar Produto e Relacionados
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- VISUALIZAÇÃO DOS PRODUTOS CRONOLÓGICOS E SEPARADOS POR CATEGORIA -->
+        <section id="printArea">
+            <!-- Cabeçalho Exclusivo do PDF -->
+            <div class="hidden print:block text-center border-b-2 border-slate-800 pb-4 mb-6">
+                <h1 class="text-2xl font-bold uppercase tracking-wider text-slate-800">Manual de Padronização de Frios Fatiados</h1>
+                <p class="text-sm text-gray-500">Relatório Geral de Ativos e Parâmetros Operacionais</p>
+            </div>
+
+            <!-- Div que vai segurar as Categorias e seus Produtos -->
+            <div id="categoriesContainer" class="space-y-8">
+                <div class="text-center py-12 text-gray-500 no-print">
+                    🔄 Carregando painel de categorias e produtos...
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- TEMPLATE PARA OS SUBPRODUTOS RELACIONADOS NO FORMULÁRIO -->
+    <template id="relatedTemplate">
+        <div class="related-item bg-white p-4 rounded-lg border-2 border-dashed border-gray-300 relative grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 pt-8">
+            <button type="button" class="btn-remove-related absolute top-2 right-2 text-red-500 hover:text-red-700 text-sm font-bold focus:outline-none cursor-pointer" title="Remover subproduto">
+                ✕ Remover
+            </button>
+            <div class="md:col-span-2">
+                <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Descrição do Relacionado</label>
+                <input type="text" class="rel-name w-full border border-gray-300 rounded p-1.5 text-sm outline-none" required placeholder="Ex: PROVOLONE FATIADO">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Código PLU/EAN</label>
+                <input type="number" class="rel-code w-full border border-gray-300 rounded p-1.5 text-sm outline-none" required placeholder="Ex: 3383">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Quantidade</label>
+                <input type="text" class="rel-qty w-full border border-gray-300 rounded p-1.5 text-sm outline-none" placeholder="Ex: 150g ou Variado">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Tipo Embalagem</label>
+                <input type="text" class="rel-package w-full border border-gray-300 rounded p-1.5 text-sm outline-none" placeholder="Ex: Bandeja EPS">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Tara (g)</label>
+                <input type="text" class="rel-tara w-full border border-gray-300 rounded p-1.5 text-sm outline-none" placeholder="Ex: 4g">
+            </div>
+            <div class="md:col-span-3 lg:col-span-6 bg-slate-50 p-2 rounded border border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div class="md:col-span-1">
+                    <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Foto (Internet Link)</label>
+                    <input type="url" class="rel-img w-full border border-gray-300 rounded p-1 text-xs outline-none" placeholder="https://...">
+                </div>
+                <div class="md:col-span-1">
+                    <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Ou da Galeria/Arquivo</label>
+                    <input type="file" accept="image/*" class="rel-file w-full bg-white border border-gray-300 rounded p-0.5 text-xs">
+                    <input type="hidden" class="rel-base64">
+                </div>
+                <div class="md:col-span-1 flex flex-col justify-end">
+                    <div class="text-[10px] text-gray-400 italic preview-status">Sem imagem local selecionada</div>
+                </div>
+            </div>
+            <div class="md:col-span-3 lg:col-span-6">
+                <label class="block text-[10px] font-bold uppercase text-gray-400 mb-0.5">Tipo de Arrumação / Padrão</label>
+                <input type="text" class="rel-setup w-full border border-gray-300 rounded p-1.5 text-sm outline-none" placeholder="Ex: Escalonado com 12 fatias sobrepostas">
+            </div>
+        </div>
+    </template>
+
+    <!-- SCRIPT DA APLICAÇÃO -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+
+        // Configuração do Firebase fornecida
+        const firebaseConfig = {
+            apiKey: "AIzaSyA45RskefgyL5QpyhUwrqDaE4P20Z2Vm_M",
+            authDomain: "painel-frios-fatiados.firebaseapp.com",
+            projectId: "painel-frios-fatiados",
+            storageBucket: "painel-frios-fatiados.firebasestorage.app",
+            messagingSenderId: "50969295695",
+            appId: "1:50969295695:web:fd51bf5a5016a9e866a33a",
+            measurementId: "G-C4E9EC43QJ"
+        };
+
+        // Inicialização do Firebase e Realtime Database
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app, "https://painel-frios-fatiados-default-rtdb.firebaseio.com/");
+
+        // Referências do DOM
+        const btnAdminAuth = document.getElementById('btnAdminAuth');
+        const adminStatus = document.getElementById('adminStatus');
+        const adminSection = document.getElementById('adminSection');
+        const productForm = document.getElementById('productForm');
+        const relatedContainer = document.getElementById('relatedContainer');
+        const btnAddRelated = document.getElementById('btnAddRelated');
+        const categoriesContainer = document.getElementById('categoriesContainer');
+        const formTitle = document.getElementById('formTitle');
+        const productIdInput = document.getElementById('productId');
+        const btnCancelEdit = document.getElementById('btnCancelEdit');
+        const btnPrint = document.getElementById('btnPrint');
+        const relatedTemplate = document.getElementById('relatedTemplate');
+
+        // Estado Global da Aplicação
+        let IS_ADMIN = false;
+        let base64ImageString = "";
+
+        // --- SISTEMA DE AUTENTICAÇÃO TEMPORAL (2 HORAS) ---
+        function checkAdminSession() {
+            const loginTime = localStorage.getItem('admin_session_time');
+            const adminUser = localStorage.getItem('admin_user');
+            
+            if (loginTime && adminUser === 'au.costa') {
+                const hoursPassed = (Date.now() - parseInt(loginTime)) / (1000 * 60 * 60);
+                if (hoursPassed < 2) {
+                    activateAdminMode();
+                    return;
+                }
+            }
+            deactivateAdminMode();
+        }
+
+        function activateAdminMode() {
+            IS_ADMIN = true;
+            adminStatus.classList.remove('hidden');
+            adminSection.classList.remove('hidden');
+            renderDashboard(); 
+        }
+
+        function deactivateAdminMode() {
+            IS_ADMIN = false;
+            adminStatus.classList.add('hidden');
+            adminSection.classList.add('hidden');
+            localStorage.removeItem('admin_session_time');
+            localStorage.removeItem('admin_user');
+            renderDashboard();
+        }
+
+        btnAdminAuth.addEventListener('click', () => {
+            const user = prompt("Digite o usuário de acesso Administrador:");
+            if (user === "au.costa") {
+                localStorage.setItem('admin_session_time', Date.now().toString());
+                localStorage.setItem('admin_user', user);
+                activateAdminMode();
+                alert("Modo Administrador ativado! Válido por 2 horas.");
+            } else if (user !== null) {
+                alert("Usuário incorreto ou sem privilégios.");
+            }
+        });
+
+        // Conversão do arquivo do Base para Base64 string
+        document.getElementById('baseImageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    base64ImageString = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // --- GERENCIAMENTO DE PRODUTOS RELACIONADOS NO FORMULÁRIO ---
+        function createRelatedRow(data = null) {
+            const clone = relatedTemplate.content.cloneNode(true);
+            const row = clone.querySelector('.related-item');
+            const fileInput = row.querySelector('.rel-file');
+            const hiddenBase64 = row.querySelector('.rel-base64');
+            const previewStatus = row.querySelector('.preview-status');
+            
+            if (data) {
+                row.querySelector('.rel-name').value = data.name || '';
+                row.querySelector('.rel-code').value = data.code || '';
+                row.querySelector('.rel-qty').value = data.qty || '';
+                row.querySelector('.rel-package').value = data.package || '';
+                row.querySelector('.rel-tara').value = data.tara || '';
+                row.querySelector('.rel-setup').value = data.setup || '';
+                
+                if (data.img && data.img.startsWith('data:image')) {
+                    hiddenBase64.value = data.img;
+                    previewStatus.innerText = "📸 Foto carregada da Galeria";
+                    previewStatus.classList.add("text-green-600");
+                } else {
+                    row.querySelector('.rel-img').value = data.img || '';
+                }
+            }
+
+            // Escuta o input de arquivo individual do produto relacionado
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        hiddenBase64.value = event.target.result;
+                        previewStatus.innerText = "📸 Imagem Pronta (Galeria)";
+                        previewStatus.classList.add("text-green-600");
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            row.querySelector('.btn-remove-related').addEventListener('click', () => {
+                row.remove();
+            });
+
+            relatedContainer.appendChild(row);
+        }
+
+        btnAddRelated.addEventListener('click', () => createRelatedRow());
+
+        // --- SALVAR / ATUALIZAR DADOS (FIREBASE) ---
+        productForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (!IS_ADMIN) return alert("Acesso negado.");
+
+            const id = productIdInput.value;
+            const finalImageUrl = base64ImageString || document.getElementById('baseImageUrl').value || 'https://images.unsplash.com/photo-1553177595-4de2bb0842b9?q=80&w=200&auto=format&fit=crop';
+
+            // Coleta os relacionados cadastrados
+            const relatedItems = [];
+            document.querySelectorAll('.related-item').forEach(item => {
+                const localBase64 = item.querySelector('.rel-base64').value;
+                const internetUrl = item.querySelector('.rel-img').value;
+
+                relatedItems.push({
+                    name: item.querySelector('.rel-name').value.toUpperCase(),
+                    code: item.querySelector('.rel-code').value,
+                    qty: item.querySelector('.rel-qty').value || "N/A",
+                    package: item.querySelector('.rel-package').value || "N/A",
+                    tara: item.querySelector('.rel-tara').value || "N/A",
+                    setup: item.querySelector('.rel-setup').value || "N/A",
+                    img: localBase64 || internetUrl || "" // Prioriza o arquivo local da galeria
+                });
+            });
+
+            const productData = {
+                categoryName: document.getElementById('categoryName').value.toUpperCase().trim(),
+                baseName: document.getElementById('baseName').value.toUpperCase().trim(),
+                baseCode: document.getElementById('baseCode').value.toUpperCase().trim(),
+                baseIdCode: document.getElementById('baseIdCode').value,
+                imageUrl: finalImageUrl,
+                related: relatedItems
+            };
+
+            if (id) {
+                // Modo Edição
+                update(ref(db, 'products/' + id), productData)
+                    .then(() => alert("Produto atualizado com sucesso!"))
+                    .catch(err => alert("Erro ao atualizar: " + err));
+            } else {
+                // Modo Novo Cadastro
+                const newProductRef = push(ref(db, 'products'));
+                set(newProductRef, productData)
+                    .then(() => alert("Produto cadastrado com sucesso!"))
+                    .catch(err => alert("Erro ao cadastrar: " + err));
+            }
+
+            resetForm();
+        });
+
+        function resetForm() {
+            productForm.reset();
+            productIdInput.value = "";
+            base64ImageString = "";
+            relatedContainer.innerHTML = "";
+            formTitle.innerText = "✨ Cadastrar Novo Produto Base";
+            btnCancelEdit.classList.add('hidden');
+        }
+
+        btnCancelEdit.addEventListener('click', resetForm);
+
+        // --- RENDERIZAÇÃO EM TEMPO REAL SEPARADO POR CATEGORIA ---
+        let cachedProducts = {};
+
+        function renderDashboard() {
+            categoriesContainer.innerHTML = "";
+            const keys = Object.keys(cachedProducts);
+
+            if (keys.length === 0) {
+                categoriesContainer.innerHTML = `<div class="bg-white p-8 text-center text-gray-500 rounded-xl border">Nenhum produto ou categoria cadastrada no sistema.</div>`;
+                return;
+            }
+
+            // Agrupar produtos por categoria
+            const grouped = {};
+            keys.forEach(key => {
+                const p = cachedProducts[key];
+                const cat = p.categoryName || "SEM CATEGORIA";
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push({ id: key, ...p });
+            });
+
+            // Criar elementos HTML organizados por categoria
+            Object.keys(grouped).sort().forEach(categoryTitle => {
+                const categoryBox = document.createElement('div');
+                categoryBox.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-300 page-break";
+                
+                categoryBox.innerHTML = `
+                    <div class="border-b-4 border-slate-700 pb-2 mb-4">
+                        <h2 class="text-xl font-black tracking-wider text-slate-800 uppercase flex items-center gap-2">
+                            📂 Categoria: ${categoryTitle}
+                        </h2>
+                    </div>
+                    <div class="product-list-container grid grid-cols-1 gap-4">
+                        <!-- Produtos Base desta Categoria entram aqui -->
+                    </div>
+                `;
+
+                const listContainer = categoryBox.querySelector('.product-list-container');
+
+                grouped[categoryTitle].forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-lg border border-gray-200 overflow-hidden transition duration-200 product-card";
+                    
+                    card.innerHTML = `
+                        <div class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-50 border-b border-gray-100">
+                            <div class="flex items-center gap-4 cursor-pointer flex-1 w-full structure-trigger" data-id="${product.id}">
+                                <img src="${product.imageUrl}" class="w-14 h-14 object-cover rounded-lg border bg-white shadow-inner shrink-0" alt="Foto">
+                                <div>
+                                    <h3 class="text-base font-bold text-slate-800">${product.baseName}</h3>
+                                    <p class="text-xs text-slate-500 font-medium">${product.baseCode} — <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-mono text-xs font-bold">${product.baseIdCode}</span></p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                                <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
+                                    ${product.related ? product.related.length : 0} Relacionado(s)
+                                </span>
+                                <div class="flex gap-2 no-print ${IS_ADMIN ? '' : 'hidden'}">
+                                    <button data-id="${product.id}" class="btn-edit bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-2.5 py-1.5 rounded transition cursor-pointer">Editar</button>
+                                    <button data-id="${product.id}" class="btn-delete bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-2.5 py-1.5 rounded transition cursor-pointer">Excluir</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Relacionados Oculta na Web (Expandida automaticamente no PDF) -->
+                        <div id="details-${product.id}" class="hidden print:block p-4 bg-white border-t border-gray-100">
+                            <h4 class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Variações / Itens Relacionados</h4>
+                            <div class="grid grid-cols-1 gap-3">
+                                ${product.related ? product.related.map(rel => `
+                                    <div class="flex flex-col md:flex-row gap-4 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                                        ${rel.img ? `<img src="${rel.img}" class="w-16 h-16 object-cover rounded border bg-white mx-auto md:mx-0 shrink-0" alt="Variação">` : ''}
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 flex-1 text-xs">
+                                            <div class="sm:col-span-2 lg:col-span-2">
+                                                <span class="font-bold text-gray-400 uppercase block text-[9px]">Subproduto</span>
+                                                <span class="text-xs font-bold text-slate-700">${rel.name}</span>
+                                            </div>
+                                            <div>
+                                                <span class="font-bold text-gray-400 uppercase block text-[9px]">Código PLU/EAN</span>
+                                                <span class="text-xs font-mono font-bold bg-gray-200 px-1.5 py-0.5 rounded text-gray-700">${rel.code}</span>
+                                            </div>
+                                            <div>
+                                                <span class="font-bold text-gray-400 uppercase block text-[9px]">Peso / Qtd</span>
+                                                <span class="text-xs font-medium text-slate-600">${rel.qty}</span>
+                                            </div>
+                                            <div>
+                                                <span class="font-bold text-gray-400 uppercase block text-[9px]">Embalagem / Tara</span>
+                                                <span class="text-xs font-medium text-slate-600">${rel.package} (Tara: ${rel.tara})</span>
+                                            </div>
+                                            <div class="sm:col-span-2 lg:col-span-5 bg-white p-2 rounded border border-gray-100 mt-1">
+                                                <span class="font-bold text-gray-400 uppercase block text-[9px] mb-0.5">Padrão de Arrumação Operacional</span>
+                                                <span class="text-xs text-slate-600">${rel.setup}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('') : '<p class="text-gray-400 italic text-xs">Sem variações vinculadas.</p>'}
+                            </div>
+                        </div>
+                    `;
+
+                    // Evento para expandir/recolher na tela ao clicar
+                    card.querySelector('.structure-trigger').addEventListener('click', () => {
+                        const detailDiv = document.getElementById(`details-${product.id}`);
+                        detailDiv.classList.toggle('hidden');
+                    });
+
+                    // Inserção dos gatilhos administrativos
+                    if (IS_ADMIN) {
+                        card.querySelector('.btn-edit').addEventListener('click', (e) => editProduct(e.target.dataset.id));
+                        card.querySelector('.btn-delete').addEventListener('click', (e) => deleteProduct(e.target.dataset.id));
+                    }
+
+                    listContainer.appendChild(card);
+                });
+
+                categoriesContainer.appendChild(categoryBox);
+            });
+        }
+
+        // Ouvinte em tempo real do Firebase Realtime Database
+        onValue(ref(db, 'products'), (snapshot) => {
+            cachedProducts = snapshot.val() || {};
+            renderDashboard();
+        });
+
+        // --- EXCLUIR PRODUTO ---
+        function deleteProduct(id) {
+            if (confirm("Tem certeza que deseja remover este produto base e todos os seus relacionados?")) {
+                remove(ref(db, 'products/' + id))
+                    .then(() => alert("Removido com sucesso."))
+                    .catch(err => alert("Erro ao deletar: " + err));
+            }
+        }
+
+        // --- PREPARAR FORMULÁRIO PARA EDIÇÃO ---
+        function editProduct(id) {
+            const product = cachedProducts[id];
+            if (!product) return;
+
+            productIdInput.value = id;
+            document.getElementById('categoryName').value = product.categoryName || '';
+            document.getElementById('baseName').value = product.baseName;
+            document.getElementById('baseCode').value = product.baseCode;
+            document.getElementById('baseIdCode').value = product.baseIdCode;
+            document.getElementById('baseImageUrl').value = product.imageUrl.startsWith('data:image') ? "" : product.imageUrl;
+            
+            base64ImageString = product.imageUrl.startsWith('data:image') ? product.imageUrl : "";
+
+            relatedContainer.innerHTML = "";
+            if (product.related) {
+                product.related.forEach(rel => createRelatedRow(rel));
+            }
+
+            formTitle.innerText = `📝 Editando: ${product.baseName}`;
+            btnCancelEdit.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- IMPRESSÃO DE PDF OTIMIZADA ---
+        btnPrint.addEventListener('click', () => {
+            // Expande todas as abas temporariamente para gerar o PDF completo
+            const hiddenDetails = document.querySelectorAll('[id^="details-"]');
+            hiddenDetails.forEach(div => div.classList.remove('hidden'));
+
+            const element = document.getElementById('printArea');
+            const opt = {
+                margin:       [10, 10, 10, 10],
+                filename:     'Padronizacao_Fatiados_Frios.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Restaura a visualização compacta na web
+                renderDashboard();
+            });
+        });
+
+        // Inicialização automática de segurança
+        checkAdminSession();
+    </script>
+</body>
+</html>
