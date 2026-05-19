@@ -79,14 +79,14 @@
     <nav class="bg-slate-800 text-white shadow-md no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <h1 class="text-xl font-bold tracking-wide flex items-center gap-2">
-                📦 Padronização de Fatiados
+                Padronização de Fatiados - Frios
             </h1>
             <div class="flex items-center gap-4">
                 <button id="btnPrint" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 cursor-pointer">
-                    🖨️ Imprimir PDF em Grade Otimizada
+                    🖨️ Imprimir PDF
                 </button>
                 <button id="btnAdminAuth" class="text-slate-500 hover:text-slate-300 text-xs font-mono transition tracking-widest focus:outline-none cursor-pointer">
-                    [ADM]
+                    ADM ACESSO
                 </button>
                 <span id="adminStatus" class="hidden text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded border border-green-500/30 font-mono">
                     Sessão ADM Ativa
@@ -100,7 +100,7 @@
         <section id="adminSection" class="hidden bg-white rounded-xl shadow-md p-6 mb-8 border border-slate-200 no-print">
             <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-3">
                 <h2 id="formTitle" class="text-lg font-bold text-slate-700 flex items-center gap-2">
-                    ✨ Cadastrar Novo Produto Base
+                    📝 Cadastrar Novo Produto Base
                 </h2>
                 <div class="flex items-center gap-4">
                     <label class="flex items-center gap-2 text-sm font-semibold text-slate-600 cursor-pointer">
@@ -418,7 +418,7 @@
             base64ImageString = "";
             relatedContainer.innerHTML = "";
             productActiveCheckbox.checked = true;
-            formTitle.innerText = "✨ Cadastrar Novo Produto Base";
+            formTitle.innerText = "📝 Cadastrar Novo Produto Base";
             btnCancelEdit.classList.add('hidden');
         }
 
