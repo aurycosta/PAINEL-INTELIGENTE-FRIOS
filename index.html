@@ -319,7 +319,6 @@
             if (loginTime && adminUser) {
                 const hoursPassed = (Date.now() - parseInt(loginTime)) / (1000 * 60 * 60);
                 if (hoursPassed < 2) {
-                    // Se for au.costa entra direto, se for outro, verifica se está na lista ativa
                     if (adminUser === 'au.costa' || cachedAdmins[adminUser.replace('.', '_')]) {
                         activateAdminMode(adminUser);
                         return;
@@ -334,7 +333,6 @@
             adminStatus.classList.remove('hidden');
             adminSection.classList.remove('hidden');
             
-            // Regra crucial: Só abre a gestão de usuários se for o criador master (au.costa)
             if (user === 'au.costa') {
                 masterAdminSection.classList.remove('hidden');
             } else {
@@ -354,16 +352,16 @@
         }
 
         btnAdminAuth.addEventListener('click', () => {
-            const user = prompt("Digite o usuário de acesso Administrador:").trim().toLowerCase();
+            const user = prompt("Digite o usuário de acesso Administrador:");
             if (!user) return;
+            const cleanUser = user.trim().toLowerCase();
 
-            // Validação: au.costa nativo, ou checagem na lista do banco de dados
-            const sanitizedUserKey = user.replace('.', '_');
-            if (user === "au.costa" || cachedAdmins[sanitizedUserKey]) {
+            const sanitizedUserKey = cleanUser.replace('.', '_');
+            if (cleanUser === "au.costa" || cachedAdmins[sanitizedUserKey]) {
                 localStorage.setItem('admin_session_time', Date.now().toString());
-                localStorage.setItem('admin_user', user);
-                activateAdminMode(user);
-                alert(`Modo Administrador ativo para o usuário [${user}] por 2 horas.`);
+                localStorage.setItem('admin_user', cleanUser);
+                activateAdminMode(cleanUser);
+                alert(`Modo Administrador ativo para o usuário [${cleanUser}] por 2 horas.`);
             } else {
                 alert("Usuário sem privilégios administrativos ou incorreto.");
             }
@@ -389,7 +387,6 @@
             if (confirm("Deseja revogar as permissões administrativas deste usuário?")) {
                 remove(ref(db, 'admins/' + userKey)).then(() => {
                     alert("Acesso revogado com sucesso.");
-                    // Se o usuário deslogado for ele mesmo (improvável via fluxo normal), derruba sessão
                     if(localStorage.getItem('admin_user') === userKey.replace('_', '.')) {
                         deactivateAdminMode();
                     }
@@ -426,7 +423,7 @@
         onValue(ref(db, 'admins'), (snapshot) => {
             cachedAdmins = snapshot.val() || {};
             renderAdminUsersList();
-            checkAdminSession(); // Garante a atualização instantânea caso um acesso seja revogado
+            checkAdminSession();
         });
 
         // --- LÓGICA DE FOTOS E SUBPRODUTOS ---
@@ -479,6 +476,8 @@
             row.querySelector('.btn-remove-related').addEventListener('click', () => row.remove());
             relatedContainer.appendChild(row);
         }
+
+        btnAddRelated.addEventListener('click', () => createRelatedRow());
 
         // --- SALVAR / ATUALIZAR PRODUTOS ---
         productForm.addEventListener('submit', function(e) {
@@ -648,11 +647,6 @@
             });
         }
 
-        onValue(ref(db, 'products'), (snapshot) => {
-            cachedProducts = snapshot.val() || {};
-            renderDashboard();
-        });
-
         // --- EXPOSIÇÃO GLOBAL DE PRODUTOS ---
         window.deleteProduct = function(id) {
             if (confirm("Remover este produto base e todos os seus relacionados?")) {
@@ -684,7 +678,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        // --- CONVERSÃO PARA TABELA EM GRADE DO PDF ---
+        // --- SISTEMA DE ESTRUTURAÇÃO DO PDF EM GRADE COMPLETA ---
         function generateCompactPdfStructure() {
             pdfTablesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
@@ -789,7 +783,7 @@
             }, 500);
         });
 
-        // Inicialização automática do sistema
+        // --- OUVIINTE EM TEMPO REAL OPERACIONAL DE PRODUTOS ---
         onValue(ref(db, 'products'), (snapshot) => {
             cachedProducts = snapshot.val() || {};
             renderDashboard();
