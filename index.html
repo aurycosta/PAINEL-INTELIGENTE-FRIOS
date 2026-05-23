@@ -72,6 +72,18 @@
         .page-break-avoid { 
             page-break-inside: avoid !important; 
         }
+
+        /* Estilo pulsante discreto para o botão de gravação */
+        .recording-active {
+            animation: pulseBg 1.5s infinite;
+            background-color: #ef4444 !important;
+            color: white !important;
+        }
+        @keyframes pulseBg {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 min-h-screen font-sans">
@@ -200,9 +212,14 @@
         </section>
 
         <section id="searchSection" class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-slate-200 no-print">
-            <div class="relative w-full">
-                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
-                <input type="text" id="searchInput" placeholder="Buscar por Nome do Produto, Categoria ou Código (PLU/EAN)..." class="w-full bg-slate-50 border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition duration-150">
+            <div class="flex gap-2 items-center w-full">
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Buscar por Nome do Produto, Categoria ou Código (PLU/EAN)..." class="w-full bg-slate-50 border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition duration-150">
+                </div>
+                <button id="btnVoiceSearch" title="Buscar por voz/áudio" class="bg-blue-100 text-blue-600 hover:bg-blue-200 p-3 rounded-xl transition flex items-center justify-center font-bold text-lg cursor-pointer min-w-12 h-12">
+                    🎙️
+                </button>
             </div>
         </section>
 
@@ -307,8 +324,9 @@
         const pdfTablesContainer = document.getElementById('pdfTablesContainer');
         const relatedTemplate = document.getElementById('relatedTemplate');
         
-        // Referência DOM - Filtro de Busca
+        // Referências DOM - Filtro de Busca e Áudio
         const searchInput = document.getElementById('searchInput');
+        const btnVoiceSearch = document.getElementById('btnVoiceSearch');
         
         // Referências DOM - Master Admin
         const newAdminUserInput = document.getElementById('newAdminUser');
@@ -546,11 +564,11 @@
 
         btnCancelEdit.addEventListener('click', resetForm);
 
-        // --- RENDERIZAÇÃO DO DASHBOARD WEB COM SUPORTE A BUSCA MULTI-FILTRO ---
+        // --- RENDERIZAÇÃO DO DASHBOARD WEB COM FILTRO DE BUSCA (E PRODUTOS INATIVOS VISÍVEIS) ---
         function renderDashboard() {
             categoriesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
-            const query = searchInput.value.trim().toLowerCase(); // Texto pesquisado pelo operador
+            const query = searchInput.value.trim().toLowerCase(); 
 
             if (keys.length === 0) {
                 categoriesContainer.innerHTML = `<div class="bg-white p-8 text-center text-gray-500 rounded-xl border">Nenhum produto cadastrado.</div>`;
@@ -560,17 +578,14 @@
             const grouped = {};
             keys.forEach(key => {
                 const p = cachedProducts[key];
-                if (p.active === false && !IS_ADMIN) return; 
-
                 const cat = p.categoryName || "SEM CATEGORIA";
                 
-                // --- REGRA DE CRUZAMENTO DOS FILTROS DA BUSCA ---
+                // Regras do cruzamento de filtros da busca
                 const matchCategory = cat.toLowerCase().includes(query);
                 const matchBaseName = (p.baseName || "").toLowerCase().includes(query);
                 const matchBaseCode = (p.baseCode || "").toLowerCase().includes(query);
                 const matchPLU = (p.baseIdCode || "").toLowerCase().includes(query);
                 
-                // Checa também se a busca bate com algum código ou nome dentro dos relacionados
                 let matchRelated = false;
                 if (p.related) {
                     matchRelated = p.related.some(r => 
@@ -579,7 +594,6 @@
                     );
                 }
 
-                // Se houver uma pesquisa ativa e o produto não passar em nenhum critério, ignora ele
                 if (query && !matchCategory && !matchBaseName && !matchBaseCode && !matchPLU && !matchRelated) {
                     return; 
                 }
@@ -613,18 +627,19 @@
                     const isInactive = product.active === false;
                     const card = document.createElement('div');
                     
+                    // Se o produto está inativo, ele ganha uma borda cinza/vermelha suave para todos os usuários
                     card.className = `rounded-lg border overflow-hidden transition duration-200 product-card ${
-                        isInactive ? 'border-red-500 bg-red-50' : 'border-gray-200 bg-white'
+                        isInactive ? 'border-gray-400 bg-gray-50/70 opacity-80' : 'border-gray-200 bg-white'
                     }`;
                     
                     card.innerHTML = `
-                        <div class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isInactive ? 'bg-red-100/50' : 'bg-slate-50'} border-b border-gray-100">
+                        <div class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isInactive ? 'bg-gray-200/40' : 'bg-slate-50'} border-b border-gray-100">
                             <div class="flex items-center gap-4 cursor-pointer flex-1 w-full structure-trigger" data-id="${product.id}">
                                 <img src="${product.imageUrl}" class="w-14 h-14 object-cover rounded-lg border bg-white shrink-0 shadow-sm" alt="Foto">
                                 <div>
                                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                                         ${product.baseName} 
-                                        ${isInactive ? '<span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded font-black tracking-wider animate-pulse">[ INATIVO ]</span>' : ''}
+                                        ${isInactive ? '<span class="text-xs bg-gray-500 text-white px-2 py-0.5 rounded font-bold tracking-wider">[ INATIVO PARA COMPRA ]</span>' : ''}
                                     </h3>
                                     <p class="text-xs text-slate-500 font-medium">${product.baseCode} — <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-mono text-xs font-bold">${product.baseIdCode}</span></p>
                                 </div>
@@ -674,7 +689,6 @@
                         </div>
                     `;
 
-                    // Força a abertura automática do card caso o item tenha sido encontrado por busca direta
                     if(query) {
                         card.querySelector(`[id^="details-"]`)?.classList.remove('hidden');
                     }
@@ -690,8 +704,47 @@
             });
         }
 
-        // Evento que dispara a busca instantânea à medida que o usuário digita
         searchInput.addEventListener('input', renderDashboard);
+
+        // --- SISTEMA DE ACESSIBILIDADE: RECONHECIMENTO DE VOZ (ÁUDIO) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'pt-BR';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+
+            btnVoiceSearch.addEventListener('click', () => {
+                if (btnVoiceSearch.classList.contains('recording-active')) {
+                    recognition.stop();
+                } else {
+                    btnVoiceSearch.classList.add('recording-active');
+                    btnVoiceSearch.innerText = "🛑";
+                    recognition.start();
+                }
+            });
+
+            recognition.addEventListener('result', (e) => {
+                const voiceResult = e.results[0][0].transcript;
+                // Remove ponto final que o validador do google costuma injetar automaticamente
+                searchInput.value = voiceResult.replace(/\.$/g, ''); 
+                renderDashboard(); // Filtra a tabela instantaneamente
+            });
+
+            recognition.addEventListener('end', () => {
+                btnVoiceSearch.classList.remove('recording-active');
+                btnVoiceSearch.innerText = "🎙️";
+            });
+
+            recognition.addEventListener('error', (e) => {
+                alert("Não foi possível reconhecer o áudio. Tente novamente.");
+                btnVoiceSearch.classList.remove('recording-active');
+                btnVoiceSearch.innerText = "🎙️";
+            });
+        } else {
+            // Se o navegador for muito antigo ou não suportar a API nativa de áudio, esconde o botão
+            btnVoiceSearch.style.display = 'none';
+        }
 
         // --- EXPOSIÇÃO GLOBAL DE PRODUTOS ---
         window.deleteProduct = function(id) {
@@ -724,7 +777,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        // --- SISTEMA DE ESTRUTURAÇÃO DO PDF EM GRADE COMPLETA ---
+        // --- SISTEMA DE ESTRUTURAÇÃO DO PDF EM GRADE COMPLETA (OCULTA INATIVOS) ---
         function generateCompactPdfStructure() {
             pdfTablesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
@@ -732,7 +785,7 @@
             const grouped = {};
             keys.forEach(key => {
                 const p = cachedProducts[key];
-                if (p.active === false) return; 
+                if (p.active === false) return; // Mantém inativos fora do papel impresso
 
                 const cat = p.categoryName || "SEM CATEGORIA";
                 if (!grouped[cat]) grouped[cat] = [];
