@@ -193,10 +193,16 @@
                                 <th class="pb-1 text-center">Ações</th>
                             </tr>
                         </thead>
-                        <tbody id="adminUsersTableBody">
-                            </tbody>
+                        <tbody id="adminUsersTableBody"></tbody>
                     </table>
                 </div>
+            </div>
+        </section>
+
+        <section id="searchSection" class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-slate-200 no-print">
+            <div class="relative w-full">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
+                <input type="text" id="searchInput" placeholder="Buscar por Nome do Produto, Categoria ou Código (PLU/EAN)..." class="w-full bg-slate-50 border border-gray-300 rounded-xl py-3 pl-10 pr-4 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition duration-150">
             </div>
         </section>
 
@@ -300,6 +306,9 @@
         const pdfPrintArea = document.getElementById('pdfPrintArea');
         const pdfTablesContainer = document.getElementById('pdfTablesContainer');
         const relatedTemplate = document.getElementById('relatedTemplate');
+        
+        // Referência DOM - Filtro de Busca
+        const searchInput = document.getElementById('searchInput');
         
         // Referências DOM - Master Admin
         const newAdminUserInput = document.getElementById('newAdminUser');
@@ -537,10 +546,11 @@
 
         btnCancelEdit.addEventListener('click', resetForm);
 
-        // --- RENDERIZAÇÃO DO DASHBOARD WEB ---
+        // --- RENDERIZAÇÃO DO DASHBOARD WEB COM SUPORTE A BUSCA MULTI-FILTRO ---
         function renderDashboard() {
             categoriesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
+            const query = searchInput.value.trim().toLowerCase(); // Texto pesquisado pelo operador
 
             if (keys.length === 0) {
                 categoriesContainer.innerHTML = `<div class="bg-white p-8 text-center text-gray-500 rounded-xl border">Nenhum produto cadastrado.</div>`;
@@ -553,11 +563,39 @@
                 if (p.active === false && !IS_ADMIN) return; 
 
                 const cat = p.categoryName || "SEM CATEGORIA";
+                
+                // --- REGRA DE CRUZAMENTO DOS FILTROS DA BUSCA ---
+                const matchCategory = cat.toLowerCase().includes(query);
+                const matchBaseName = (p.baseName || "").toLowerCase().includes(query);
+                const matchBaseCode = (p.baseCode || "").toLowerCase().includes(query);
+                const matchPLU = (p.baseIdCode || "").toLowerCase().includes(query);
+                
+                // Checa também se a busca bate com algum código ou nome dentro dos relacionados
+                let matchRelated = false;
+                if (p.related) {
+                    matchRelated = p.related.some(r => 
+                        (r.name || "").toLowerCase().includes(query) || 
+                        (r.code || "").toLowerCase().includes(query)
+                    );
+                }
+
+                // Se houver uma pesquisa ativa e o produto não passar em nenhum critério, ignora ele
+                if (query && !matchCategory && !matchBaseName && !matchBaseCode && !matchPLU && !matchRelated) {
+                    return; 
+                }
+
                 if (!grouped[cat]) grouped[cat] = [];
                 grouped[cat].push({ id: key, ...p });
             });
 
-            Object.keys(grouped).sort().forEach(categoryTitle => {
+            const visibleCategories = Object.keys(grouped).sort();
+            
+            if (visibleCategories.length === 0 || visibleCategories.every(c => grouped[c].length === 0)) {
+                categoriesContainer.innerHTML = `<div class="bg-white p-8 text-center text-gray-500 rounded-xl border">Nenhum produto corresponde aos termos pesquisados.</div>`;
+                return;
+            }
+
+            visibleCategories.forEach(categoryTitle => {
                 if(grouped[categoryTitle].length === 0) return;
 
                 const categoryBox = document.createElement('div');
@@ -636,6 +674,11 @@
                         </div>
                     `;
 
+                    // Força a abertura automática do card caso o item tenha sido encontrado por busca direta
+                    if(query) {
+                        card.querySelector(`[id^="details-"]`)?.classList.remove('hidden');
+                    }
+
                     card.querySelector('.structure-trigger').addEventListener('click', () => {
                         document.getElementById(`details-${product.id}`).classList.toggle('hidden');
                     });
@@ -646,6 +689,9 @@
                 categoriesContainer.appendChild(categoryBox);
             });
         }
+
+        // Evento que dispara a busca instantânea à medida que o usuário digita
+        searchInput.addEventListener('input', renderDashboard);
 
         // --- EXPOSIÇÃO GLOBAL DE PRODUTOS ---
         window.deleteProduct = function(id) {
