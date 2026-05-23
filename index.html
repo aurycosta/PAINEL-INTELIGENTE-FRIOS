@@ -388,7 +388,7 @@
                 localStorage.setItem('admin_session_time', Date.now().toString());
                 localStorage.setItem('admin_user', cleanUser);
                 activateAdminMode(cleanUser);
-                alert(`Modo Administrador ativo para o usuário [${cleanUser}] por 2 horas.`);
+                alert(`Modo Administrador ativo para o usuário [${cleanUser}] por 2 hours.`);
             } else {
                 alert("Usuário sem privilégios administrativos ou incorreto.");
             }
@@ -564,7 +564,7 @@
 
         btnCancelEdit.addEventListener('click', resetForm);
 
-        // --- RENDERIZAÇÃO DO DASHBOARD WEB COM FILTRO DE BUSCA (E PRODUTOS INATIVOS VISÍVEIS) ---
+        // --- RENDERIZAÇÃO DO DASHBOARD WEB ---
         function renderDashboard() {
             categoriesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
@@ -580,7 +580,6 @@
                 const p = cachedProducts[key];
                 const cat = p.categoryName || "SEM CATEGORIA";
                 
-                // Regras do cruzamento de filtros da busca
                 const matchCategory = cat.toLowerCase().includes(query);
                 const matchBaseName = (p.baseName || "").toLowerCase().includes(query);
                 const matchBaseCode = (p.baseCode || "").toLowerCase().includes(query);
@@ -627,19 +626,19 @@
                     const isInactive = product.active === false;
                     const card = document.createElement('div');
                     
-                    // Se o produto está inativo, ele ganha uma borda cinza/vermelha suave para todos os usuários
+                    // MELHORIA ATUAL: Card inativo destacado em vermelho/avermelhado bem suave e legível
                     card.className = `rounded-lg border overflow-hidden transition duration-200 product-card ${
-                        isInactive ? 'border-gray-400 bg-gray-50/70 opacity-80' : 'border-gray-200 bg-white'
+                        isInactive ? 'border-red-300 bg-red-50/60 shadow-sm' : 'border-gray-200 bg-white'
                     }`;
                     
                     card.innerHTML = `
-                        <div class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isInactive ? 'bg-gray-200/40' : 'bg-slate-50'} border-b border-gray-100">
+                        <div class="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${isInactive ? 'bg-red-100/40' : 'bg-slate-50'} border-b border-gray-100">
                             <div class="flex items-center gap-4 cursor-pointer flex-1 w-full structure-trigger" data-id="${product.id}">
                                 <img src="${product.imageUrl}" class="w-14 h-14 object-cover rounded-lg border bg-white shrink-0 shadow-sm" alt="Foto">
                                 <div>
                                     <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
                                         ${product.baseName} 
-                                        ${isInactive ? '<span class="text-xs bg-gray-500 text-white px-2 py-0.5 rounded font-bold tracking-wider">[ INATIVO PARA COMPRA ]</span>' : ''}
+                                        ${isInactive ? '<span class="text-xs bg-red-600 text-white px-2.5 py-0.5 rounded font-black tracking-wider animate-pulse">[ INATIVO PARA COMPRA ]</span>' : ''}
                                     </h3>
                                     <p class="text-xs text-slate-500 font-medium">${product.baseCode} — <span class="bg-slate-200 px-2 py-0.5 rounded text-slate-700 font-mono text-xs font-bold">${product.baseIdCode}</span></p>
                                 </div>
@@ -706,7 +705,7 @@
 
         searchInput.addEventListener('input', renderDashboard);
 
-        // --- SISTEMA DE ACESSIBILIDADE: RECONHECIMENTO DE VOZ (ÁUDIO) ---
+        // --- RECONHECIMENTO DE VOZ (ÁUDIO) ---
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             const recognition = new SpeechRecognition();
@@ -726,9 +725,8 @@
 
             recognition.addEventListener('result', (e) => {
                 const voiceResult = e.results[0][0].transcript;
-                // Remove ponto final que o validador do google costuma injetar automaticamente
                 searchInput.value = voiceResult.replace(/\.$/g, ''); 
-                renderDashboard(); // Filtra a tabela instantaneamente
+                renderDashboard(); 
             });
 
             recognition.addEventListener('end', () => {
@@ -742,7 +740,6 @@
                 btnVoiceSearch.innerText = "🎙️";
             });
         } else {
-            // Se o navegador for muito antigo ou não suportar a API nativa de áudio, esconde o botão
             btnVoiceSearch.style.display = 'none';
         }
 
@@ -777,7 +774,7 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
-        // --- SISTEMA DE ESTRUTURAÇÃO DO PDF EM GRADE COMPLETA (OCULTA INATIVOS) ---
+        // --- ESTRUTURAÇÃO DO PDF EM GRADE COMPLETA (MANTÉM OCULTAÇÃO DE INATIVOS) ---
         function generateCompactPdfStructure() {
             pdfTablesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
@@ -785,7 +782,7 @@
             const grouped = {};
             keys.forEach(key => {
                 const p = cachedProducts[key];
-                if (p.active === false) return; // Mantém inativos fora do papel impresso
+                if (p.active === false) return; 
 
                 const cat = p.categoryName || "SEM CATEGORIA";
                 if (!grouped[cat]) grouped[cat] = [];
