@@ -388,7 +388,7 @@
                 localStorage.setItem('admin_session_time', Date.now().toString());
                 localStorage.setItem('admin_user', cleanUser);
                 activateAdminMode(cleanUser);
-                alert(`Modo Administrador ativo para o usuário [${cleanUser}] por 2 hours.`);
+                alert(`Modo Administrador ativo para o usuário [${cleanUser}] por 2 horas.`);
             } else {
                 alert("Usuário sem privilégios administrativos ou incorreto.");
             }
@@ -564,37 +564,40 @@
 
         btnCancelEdit.addEventListener('click', resetForm);
 
-        // --- RENDERIZAÇÃO DO DASHBOARD WEB ---
+        // --- RENDERIZAÇÃO DO DASHBOARD COM LOGICA DE BUSCA BASEADA EM TOKENS (SABER CRUZAR AS PALAVRAS) ---
         function renderDashboard() {
             categoriesContainer.innerHTML = "";
             const keys = Object.keys(cachedProducts);
-            const query = searchInput.value.trim().toLowerCase(); 
+            const rawQuery = searchInput.value.trim().toLowerCase(); 
 
             if (keys.length === 0) {
                 categoriesContainer.innerHTML = `<div class="bg-white p-8 text-center text-gray-500 rounded-xl border">Nenhum produto cadastrado.</div>`;
                 return;
             }
 
+            // MELHORIA ATUAL: Quebra a frase falada/digitada em palavras individuais, ignorando conectores inúteis
+            const stopwords = ["queijo", "de", "com", "o", "a", "em", "para"];
+            const searchWords = rawQuery.split(/\s+/)
+                                        .filter(word => word.length > 1 && !stopwords.includes(word));
+
             const grouped = {};
             keys.forEach(key => {
                 const p = cachedProducts[key];
                 const cat = p.categoryName || "SEM CATEGORIA";
                 
-                const matchCategory = cat.toLowerCase().includes(query);
-                const matchBaseName = (p.baseName || "").toLowerCase().includes(query);
-                const matchBaseCode = (p.baseCode || "").toLowerCase().includes(query);
-                const matchPLU = (p.baseIdCode || "").toLowerCase().includes(query);
+                // Concatena todo o texto do produto em um bloco de texto único para cruzamento completo
+                let productMetadata = `${cat} ${p.baseName || ''} ${p.baseCode || ''} ${p.baseIdCode || ''}`.toLowerCase();
                 
-                let matchRelated = false;
                 if (p.related) {
-                    matchRelated = p.related.some(r => 
-                        (r.name || "").toLowerCase().includes(query) || 
-                        (r.code || "").toLowerCase().includes(query)
-                    );
+                    p.related.forEach(r => {
+                        productMetadata += ` ${r.name || ''} ${r.code || ''}`;
+                    });
                 }
 
-                if (query && !matchCategory && !matchBaseName && !matchBaseCode && !matchPLU && !matchRelated) {
-                    return; 
+                // REGRA DE OURO: Para o produto passar na busca, TODAS as palavras chaves pesquisadas precisam existir no bloco de texto dele
+                if (searchWords.length > 0) {
+                    const matchesAllWords = searchWords.every(word => productMetadata.includes(word));
+                    if (!matchesAllWords) return; // Se faltar alguma palavra pesquisada, esconde o produto
                 }
 
                 if (!grouped[cat]) grouped[cat] = [];
@@ -626,7 +629,6 @@
                     const isInactive = product.active === false;
                     const card = document.createElement('div');
                     
-                    // MELHORIA ATUAL: Card inativo destacado em vermelho/avermelhado bem suave e legível
                     card.className = `rounded-lg border overflow-hidden transition duration-200 product-card ${
                         isInactive ? 'border-red-300 bg-red-50/60 shadow-sm' : 'border-gray-200 bg-white'
                     }`;
@@ -688,7 +690,8 @@
                         </div>
                     `;
 
-                    if(query) {
+                    // Força a expansão se houver alguma busca ativa
+                    if(rawQuery) {
                         card.querySelector(`[id^="details-"]`)?.classList.remove('hidden');
                     }
 
